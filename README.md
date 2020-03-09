@@ -2,6 +2,12 @@
 
 Demo on the S113 on the nRF5281x
 
+## Examples
+
+There are two examples.
+ * Example 1: ble_app_uart_s113 (S113v7.0.1) with app_uart_fifo
+ * Example 2: ble_app_uart_s113_libuarte with libuarte 
+
 ## Requirement
 
 * NRF52832 DK board
