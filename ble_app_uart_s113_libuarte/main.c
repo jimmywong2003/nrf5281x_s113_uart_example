@@ -82,7 +82,7 @@
 
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
-#define DEVICE_NAME                     "UART113"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "LibUARTE"                               /**< Name of device. Will be included in the advertising data. */
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
 
 #define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -90,6 +90,8 @@
 #define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
 
 #define APP_ADV_DURATION                18000                                       /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+
+#define BATTERY_LEVEL_MEAS_INTERVAL     APP_TIMER_TICKS(120000)                 /**< Battery level measurement interval (ticks). This value corresponds to 120 seconds. */
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
@@ -105,6 +107,9 @@
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
 
 
+APP_TIMER_DEF(m_battery_timer_id);                      /**< Battery measurement timer. */
+
+
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
@@ -116,9 +121,6 @@ static ble_uuid_t m_adv_uuids[]          =                                      
 {
         {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
 };
-
-
-
 
 #include "nrf_libuarte_async.h"
 
@@ -143,7 +145,6 @@ void libuart_event_handler(void * context, nrf_libuarte_async_evt_t * p_evt)
         nrf_libuarte_async_t * p_libuarte = (nrf_libuarte_async_t *)context;
         ret_code_t ret, err_code;
 
-
         switch (p_evt->type)
         {
         case NRF_LIBUARTE_ASYNC_EVT_ERROR:
@@ -156,48 +157,35 @@ void libuart_event_handler(void * context, nrf_libuarte_async_evt_t * p_evt)
                 uart_length = p_evt->data.rxtx.length;
                 memcpy(uart_buffer, p_evt->data.rxtx.p_data, uart_length);
 
-                err_code = ble_nus_data_send(&m_nus, uart_buffer, &uart_length, m_conn_handle);
-                if ((err_code != NRF_ERROR_INVALID_STATE) &&
-                    (err_code != NRF_ERROR_RESOURCES) &&
-                    (err_code != NRF_ERROR_NOT_FOUND))
+                NRF_LOG_INFO("\n\nfree_cnt = %d, buf_size = %d", p_libuarte->p_ctrl_blk->rx_free_cnt, p_libuarte->rx_buf_size);
+
+                if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
                 {
-                        APP_ERROR_CHECK(err_code);
+                        err_code = ble_nus_data_send(&m_nus, uart_buffer, &uart_length, m_conn_handle);
+                        if ((err_code != NRF_ERROR_INVALID_STATE) &&
+                            (err_code != NRF_ERROR_RESOURCES) &&
+                            (err_code != NRF_ERROR_NOT_FOUND))
+                        {
+                                APP_ERROR_CHECK(err_code);
+                        }
                 }
 
-#if 0
-                ret = nrf_libuarte_async_tx(p_libuarte,p_evt->data.rxtx.p_data, p_evt->data.rxtx.length);
-                NRF_LOG_INFO("ASYNC RX DATA");
-                NRF_LOG_HEXDUMP_INFO(p_evt->data.rxtx.p_data, p_evt->data.rxtx.length);
-
-                if (ret == NRF_ERROR_BUSY)
-                {
-                        buffer_t buf = {
-                                .p_data = p_evt->data.rxtx.p_data,
-                                .length = p_evt->data.rxtx.length,
-                        };
-                        ret = nrf_queue_push(&m_buf_queue, &buf);
-                        APP_ERROR_CHECK(ret);
-                }
-                else
-                {
-                        APP_ERROR_CHECK(ret);
-                }
-                m_loopback_phase = true;
-#endif
+                nrf_libuarte_async_rx_free(p_libuarte, p_evt->data.rxtx.p_data, p_evt->data.rxtx.length);
 
                 break;
         case NRF_LIBUARTE_ASYNC_EVT_TX_DONE:
-                if (m_loopback_phase)
-                {
-                        nrf_libuarte_async_rx_free(p_libuarte, p_evt->data.rxtx.p_data, p_evt->data.rxtx.length);
-                        if (!nrf_queue_is_empty(&m_buf_queue))
-                        {
-                                buffer_t buf;
-                                ret = nrf_queue_pop(&m_buf_queue, &buf);
-                                APP_ERROR_CHECK(ret);
-                                UNUSED_RETURN_VALUE(nrf_libuarte_async_tx(p_libuarte, buf.p_data, buf.length));
-                        }
-                }
+                NRF_LOG_DEBUG("NRF_LIBUARTE_ASYNC_EVT_TX_DONE");
+                //         //if (m_loopback_phase)
+                // {
+                //         nrf_libuarte_async_rx_free(p_libuarte, p_evt->data.rxtx.p_data, p_evt->data.rxtx.length);
+                //         if (!nrf_queue_is_empty(&m_buf_queue))
+                //         {
+                //                 buffer_t buf;
+                //                 ret = nrf_queue_pop(&m_buf_queue, &buf);
+                //                 APP_ERROR_CHECK(ret);
+                //                 UNUSED_RETURN_VALUE(nrf_libuarte_async_tx(p_libuarte, buf.p_data, buf.length));
+                //         }
+                // }
                 break;
         default:
                 break;
@@ -217,7 +205,7 @@ void libuart_init(void)
                 .parity     = NRF_UARTE_PARITY_EXCLUDED,
                 .hwfc       = NRF_UARTE_HWFC_DISABLED,
                 .timeout_us = 100,
-                .int_prio   = APP_IRQ_PRIORITY_LOW
+                .int_prio   = APP_IRQ_PRIORITY_LOW_MID
         };
 
         err_code = nrf_libuarte_async_init(&libuarte, &nrf_libuarte_async_config, libuart_event_handler, (void *)&libuarte);
@@ -245,11 +233,30 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
         app_error_handler(DEAD_BEEF, line_num, p_file_name);
 }
 
+/**@brief Function for handling the Battery measurement timer timeout.
+ *
+ * @details This function will be called each time the battery level measurement timer expires.
+ *          This function will start the ADC.
+ *
+ * @param[in] p_context   Pointer used for passing some arbitrary information (context) from the
+ *                        app_start_timer() call to the timeout handler.
+ */
+static void battery_level_meas_timeout_handler(void * p_context)
+{
+        UNUSED_PARAMETER(p_context);
+}
+
 /**@brief Function for initializing the timer module.
  */
 static void timers_init(void)
 {
         ret_code_t err_code = app_timer_init();
+        APP_ERROR_CHECK(err_code);
+
+        // Create battery timer.
+        err_code = app_timer_create(&m_battery_timer_id,
+                                    APP_TIMER_MODE_REPEATED,
+                                    battery_level_meas_timeout_handler);
         APP_ERROR_CHECK(err_code);
 }
 
@@ -318,28 +325,18 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 
                 err_code = nrf_libuarte_async_tx(&libuarte, uart_buffer, uart_length);
                 APP_ERROR_CHECK(err_code);
-
-                // NRF_LOG_DEBUG("Received data from BLE NUS. Writing data on UART.");
-                // NRF_LOG_HEXDUMP_DEBUG(p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
-                //
-                // for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
-                // {
-                //         do
-                //         {
-                //                 err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
-                //                 if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
-                //                 {
-                //                         NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
-                //                         APP_ERROR_CHECK(err_code);
-                //                 }
-                //         } while (err_code == NRF_ERROR_BUSY);
-                // }
-                // if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
-                // {
-                //         while (app_uart_put('\n') == NRF_ERROR_BUSY);
-                // }
         }
-
+        else if (p_evt->type == BLE_NUS_EVT_COMM_STARTED) //jimmy
+        {
+                // BLE Uart service is ready and connected to phone
+                // start to send data to MCU for acknowledgment
+                NRF_LOG_INFO("BLE_NUS_EVT_COMM_STARTED");
+        }
+        else if (p_evt->type == BLE_NUS_EVT_COMM_STOPPED) //jimmy
+        {
+                // UART service is disabled
+                NRF_LOG_INFO("BLE_NUS_EVT_COMM_STOPPED");
+        }
 }
 /**@snippet [Handling the data received over BLE] */
 
@@ -767,6 +764,12 @@ static void buttons_leds_init(bool * p_erase_bonds)
         *p_erase_bonds = (startup_event == BSP_EVENT_CLEAR_BONDING_DATA);
 }
 
+static void timers_start(void)
+{
+        // Start battery timer
+        ret_code_t err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
+        APP_ERROR_CHECK(err_code);
+}
 
 /**@brief Function for initializing the nrf log module.
  */
