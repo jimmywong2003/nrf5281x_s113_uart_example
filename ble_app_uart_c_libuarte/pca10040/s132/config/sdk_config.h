@@ -2685,7 +2685,7 @@
 // <e> NRFX_PPI_ENABLED - nrfx_ppi - PPI peripheral allocator
 //==========================================================
 #ifndef NRFX_PPI_ENABLED
-#define NRFX_PPI_ENABLED 0
+#define NRFX_PPI_ENABLED 1
 #endif
 // <e> NRFX_PPI_CONFIG_LOG_ENABLED - Enables logging in the module.
 //==========================================================
@@ -3938,7 +3938,7 @@
 // <e> NRFX_TIMER_ENABLED - nrfx_timer - TIMER periperal driver
 //==========================================================
 #ifndef NRFX_TIMER_ENABLED
-#define NRFX_TIMER_ENABLED 0
+#define NRFX_TIMER_ENABLED 1
 #endif
 // <q> NRFX_TIMER0_ENABLED  - Enable TIMER0 instance
  
@@ -3958,7 +3958,7 @@
  
 
 #ifndef NRFX_TIMER2_ENABLED
-#define NRFX_TIMER2_ENABLED 0
+#define NRFX_TIMER2_ENABLED 1
 #endif
 
 // <q> NRFX_TIMER3_ENABLED  - Enable TIMER3 instance
@@ -4919,7 +4919,7 @@
  
 
 #ifndef PPI_ENABLED
-#define PPI_ENABLED 0
+#define PPI_ENABLED 1
 #endif
 
 // <e> PWM_ENABLED - nrf_drv_pwm - PWM peripheral driver - legacy layer
@@ -5649,7 +5649,7 @@
 // <e> TIMER_ENABLED - nrf_drv_timer - TIMER periperal driver - legacy layer
 //==========================================================
 #ifndef TIMER_ENABLED
-#define TIMER_ENABLED 0
+#define TIMER_ENABLED 1
 #endif
 // <o> TIMER_DEFAULT_CONFIG_FREQUENCY  - Timer frequency if in Timer mode
  
@@ -5723,7 +5723,7 @@
  
 
 #ifndef TIMER2_ENABLED
-#define TIMER2_ENABLED 0
+#define TIMER2_ENABLED 1
 #endif
 
 // <q> TIMER3_ENABLED  - Enable TIMER3 instance
@@ -7223,6 +7223,39 @@
 #endif
 // <h> nrf_fstorage - Common settings
 
+
+
+// </h>
+//==========================================================
+
+// <h> nrf_libuarte_drv - libUARTE library
+
+//==========================================================
+// <q> NRF_LIBUARTE_DRV_HWFC_ENABLED  - Enable HWFC support in the driver
+
+
+#ifndef NRF_LIBUARTE_DRV_HWFC_ENABLED
+#define NRF_LIBUARTE_DRV_HWFC_ENABLED 0
+#endif
+
+// <q> NRF_LIBUARTE_DRV_UARTE0  - UARTE0 instance
+
+
+#ifndef NRF_LIBUARTE_DRV_UARTE0
+#define NRF_LIBUARTE_DRV_UARTE0 1
+#endif
+
+// <q> NRF_LIBUARTE_DRV_UARTE1  - UARTE1 instance
+
+
+#ifndef NRF_LIBUARTE_DRV_UARTE1
+#define NRF_LIBUARTE_DRV_UARTE1 0
+#endif
+
+// </h>
+//==========================================================
+
+
 // <i> Common settings to all fstorage implementations
 //==========================================================
 // <q> NRF_FSTORAGE_PARAM_CHECK_DISABLED  - Disable user input validation
@@ -7279,6 +7312,14 @@
 #ifndef NRF_GFX_ENABLED
 #define NRF_GFX_ENABLED 0
 #endif
+
+// <q> NRF_LIBUARTE_ASYNC_WITH_APP_TIMER  - nrf_libuarte_async - libUARTE_async library
+
+
+#ifndef NRF_LIBUARTE_ASYNC_WITH_APP_TIMER
+#define NRF_LIBUARTE_ASYNC_WITH_APP_TIMER 1
+#endif
+
 
 // <q> NRF_MEMOBJ_ENABLED  - nrf_memobj - Linked memory allocator module
  
@@ -7786,7 +7827,7 @@
 // <4=> Debug 
 
 #ifndef NRF_LOG_DEFAULT_LEVEL
-#define NRF_LOG_DEFAULT_LEVEL 3
+#define NRF_LOG_DEFAULT_LEVEL 4
 #endif
 
 // <q> NRF_LOG_DEFERRED  - Enable deffered logger.
@@ -10026,7 +10067,7 @@
 // <e> NRF_LIBUARTE_CONFIG_LOG_ENABLED - Enables logging in the module.
 //==========================================================
 #ifndef NRF_LIBUARTE_CONFIG_LOG_ENABLED
-#define NRF_LIBUARTE_CONFIG_LOG_ENABLED 0
+#define NRF_LIBUARTE_CONFIG_LOG_ENABLED 1
 #endif
 // <o> NRF_LIBUARTE_CONFIG_LOG_LEVEL  - Default Severity level
  
