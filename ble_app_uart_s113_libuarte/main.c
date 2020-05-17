@@ -130,18 +130,11 @@
 #define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
 
-
-
-
-
 APP_TIMER_DEF(m_battery_timer_id);                      /**< Battery measurement timer. */
-
 
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                             /**< Context for the Queued Write module.*/
-//BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
-
 
 static uint8_t m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;           /**< Advertising handle used to identify an advertising set. */
 static uint8_t m_enc_advdata[BLE_GAP_ADV_SET_DATA_SIZE_MAX];            /**< Buffer for storing an encoded advertising set. */
@@ -169,8 +162,6 @@ static ble_uuid_t m_adv_uuids[]          =                                      
         {BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}
 };
 
-
-
 typedef enum {
         APP_STATE_IDLE = 0,
         APP_STATE_ADVERTISING,
@@ -193,27 +184,17 @@ typedef struct {
 
 app_display_content_t m_application_state = {0};
 
+#define LIBUARTE_DATA_LENGTH (NRF_SDH_BLE_GATT_MAX_MTU_SIZE-3)
+#define LIBUARTE_BLOCK_LENGTH  10
 
-
-
-NRF_LIBUARTE_ASYNC_DEFINE(libuarte, 0, 2, 0, NRF_LIBUARTE_PERIPHERAL_NOT_USED, 255, 3);
-
-static uint8_t text[] = "UART example started.\r\n Loopback:\r\n";
-static uint8_t text_size = sizeof(text);
-static volatile bool m_loopback_phase;
-
-//typedef struct {
-//        uint8_t * p_data;
-//        uint32_t length;
-//} buffer_t;
-
-#define LIBUARTE_DATA_LENGTH 255
+NRF_LIBUARTE_ASYNC_DEFINE(libuarte, 0, 2, 0, NRF_LIBUARTE_PERIPHERAL_NOT_USED, LIBUARTE_DATA_LENGTH, LIBUARTE_BLOCK_LENGTH);
 
 typedef struct buffer_s {
         uint8_t data_array[LIBUARTE_DATA_LENGTH];
         uint8_t len;
 } buffer_t;
-NRF_QUEUE_DEF(buffer_t, m_buf_queue, 3, NRF_QUEUE_MODE_OVERFLOW);
+
+NRF_QUEUE_DEF(buffer_t, m_buf_queue, LIBUARTE_BLOCK_LENGTH, NRF_QUEUE_MODE_OVERFLOW);
 
 // void libuart_event_handler(void * context, nrf_libuarte_async_evt_t * p_evt)
 // {
@@ -1156,6 +1137,9 @@ static void power_management_init(void)
         APP_ERROR_CHECK(err_code);
 }
 
+/**@brief Function for placing the application in low power state while waiting for events.
+ */
+#define FPU_EXCEPTION_MASK 0x0000009F
 
 /**@brief Function for handling the idle state (main loop).
  *
@@ -1163,6 +1147,12 @@ static void power_management_init(void)
  */
 static void idle_state_handle(void)
 {
+  #if defined (NRF52832_XXAA) || defined (NRF52840_XXAA)
+        __set_FPSCR(__get_FPSCR()  & ~(FPU_EXCEPTION_MASK));
+        (void) __get_FPSCR();
+        NVIC_ClearPendingIRQ(FPU_IRQn);
+  #endif
+        app_sched_execute();
         if (NRF_LOG_PROCESS() == false)
         {
                 nrf_pwr_mgmt_run();
