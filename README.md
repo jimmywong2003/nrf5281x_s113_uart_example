@@ -16,3 +16,5 @@ There are two examples.
 * IDE: Segger Embedded Studio
 
 This project can be placed inside the examples folder.
+
+* Add the nRF52832 DK PCA10040 example and run on the SDK 17.0.2
